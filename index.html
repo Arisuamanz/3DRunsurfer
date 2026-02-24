@@ -16,6 +16,7 @@
             pointer-events: none;
             z-index: 10;
         }
+        #highscore { font-size: 20px; font-weight: bold; color: #ffeb3b; margin-bottom: 5px; }
         #score { font-size: 28px; font-weight: bold; }
         
         #controls {
@@ -23,22 +24,24 @@
             bottom: 40px;
             width: 100%;
             display: flex;
-            justify-content: center;
-            gap: 20px;
+            justify-content: space-between; /* Menolak butang ke kiri dan kanan */
+            padding: 0 30px; /* Jarak dari tepi skrin */
+            box-sizing: border-box; /* Penting untuk padding */
             pointer-events: none;
             z-index: 10;
         }
         .btn {
-            width: 80px;
+            width: 130px; /* Melebarkan saiz butang */
             height: 80px;
             background: rgba(255, 255, 255, 0.2);
             border: 3px solid white;
-            border-radius: 50%;
+            border-radius: 20px; /* Ditukar dari bulat ke petak bucu bulat */
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
+            font-size: 18px;
             pointer-events: auto;
             user-select: none;
             cursor: pointer;
@@ -77,12 +80,12 @@
 <body>
 
     <div id="ui">
+        <div id="highscore">Skor Tertinggi: 0</div>
         <div id="score">Skor: 0</div>
     </div>
 
     <div id="controls">
         <div class="btn" id="btn-left">KIRI</div>
-        <div class="btn" id="btn-jump">LOMPAT</div>
         <div class="btn" id="btn-right">KANAN</div>
     </div>
 
@@ -95,22 +98,28 @@
     <script>
         let scene, camera, renderer, player, clock;
         let obstacles = [];
-        let trees = []; // Array untuk simpan pokok
+        let trees = []; 
         let lanes = [-2.2, 0, 2.2]; 
         let currentLaneIndex = 1; 
+        
         let score = 0;
+        // Sistem memory Skor Tertinggi menggunakan localStorage
+        let highScore = localStorage.getItem('runnerHighScore') || 0;
+        
         let isGameOver = false;
         let gameSpeed = 0.25;
         let playerVelocityY = 0;
         let isJumping = false;
         
-        // Pelarasan Lompatan
+        // Pelarasan Lompatan (Dikekalkan untuk papan kekunci jika mahu, butang UI dah dibuang)
         const gravity = -0.01;
         const jumpStrength = 0.26;
 
         function init() {
+            // Paparkan Skor Tertinggi pada permulaan
+            document.getElementById('highscore').innerText = "Skor Tertinggi: " + highScore;
+
             scene = new THREE.Scene();
-            // Latar belakang warna malam
             scene.background = new THREE.Color(0x0a0a1a);
             scene.fog = new THREE.Fog(0x0a0a1a, 15, 80);
 
@@ -123,7 +132,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Pencahayaan
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
 
@@ -131,9 +139,9 @@
             pointLight.position.set(0, 10, 5);
             scene.add(pointLight);
 
-            // Tanah (Luar landasan)
+            // Tanah luar landasan
             const groundGeo = new THREE.PlaneGeometry(100, 500);
-            const groundMat = new THREE.MeshPhongMaterial({ color: 0x0f260f }); // Hijau gelap
+            const groundMat = new THREE.MeshPhongMaterial({ color: 0x0f260f }); 
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.position.z = -200;
@@ -142,7 +150,7 @@
 
             // Landasan larian
             const floorGeo = new THREE.PlaneGeometry(8, 500);
-            const floorMat = new THREE.MeshPhongMaterial({ color: 0x222222 }); // Kelabu gelap
+            const floorMat = new THREE.MeshPhongMaterial({ color: 0x222222 }); 
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.position.z = -200;
@@ -163,22 +171,24 @@
             window.addEventListener('keydown', handleKeyDown);
             setupButton('btn-left', () => movePlayer(-1));
             setupButton('btn-right', () => movePlayer(1));
-            setupButton('btn-jump', jump);
+            // Butang lompat telah dibuang dari UI
             
             document.getElementById('restart-btn').addEventListener('click', restartGame);
             window.addEventListener('resize', onWindowResize);
 
             spawnObstacleLoop();
-            spawnEnvironmentLoop(); // Loop khas untuk pokok
+            spawnEnvironmentLoop(); 
             animate();
         }
 
         function setupButton(id, action) {
             const btn = document.getElementById(id);
-            btn.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                action();
-            });
+            if(btn) {
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    action();
+                });
+            }
         }
 
         function createPlayer() {
@@ -203,20 +213,17 @@
             scene.add(player);
         }
 
-        // Fungsi untuk mencipta pokok
         function createTree(x, z) {
             const treeGroup = new THREE.Group();
 
-            // Batang pokok
             const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 1.5, 8);
-            const trunkMat = new THREE.MeshPhongMaterial({ color: 0x5c4033 }); // Coklat gelap
+            const trunkMat = new THREE.MeshPhongMaterial({ color: 0x5c4033 }); 
             const trunk = new THREE.Mesh(trunkGeo, trunkMat);
             trunk.position.y = 0.75;
             treeGroup.add(trunk);
 
-            // Daun pokok
             const leavesGeo = new THREE.ConeGeometry(1.8, 3.5, 8);
-            const leavesMat = new THREE.MeshPhongMaterial({ color: 0x1e5631 }); // Hijau
+            const leavesMat = new THREE.MeshPhongMaterial({ color: 0x1e5631 }); 
             const leaves = new THREE.Mesh(leavesGeo, leavesMat);
             leaves.position.y = 2.5;
             treeGroup.add(leaves);
@@ -228,9 +235,9 @@
 
         function handleKeyDown(e) {
             if (isGameOver) return;
-            if (e.key === "ArrowLeft") movePlayer(-1);
-            if (e.key === "ArrowRight") movePlayer(1);
-            if (e.key === "ArrowUp" || e.key === " ") jump();
+            if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") movePlayer(-1);
+            if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") movePlayer(1);
+            if (e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === " ") jump();
         }
 
         function movePlayer(direction) {
@@ -251,10 +258,10 @@
         function spawnObstacleLoop() {
             if (isGameOver) return;
 
-            // Cipta Kotak Rintangan
+            // Kotak Rintangan Kekal Kelabu Terang
             const lane = Math.floor(Math.random() * 3);
             const geo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-            const mat = new THREE.MeshPhongMaterial({ color: 0x882222 }); // Warna Merah Gelap
+            const mat = new THREE.MeshPhongMaterial({ color: 0x666666 }); 
             const obs = new THREE.Mesh(geo, mat);
             obs.position.set(lanes[lane], 0.75, -70);
             scene.add(obs);
@@ -267,15 +274,12 @@
         function spawnEnvironmentLoop() {
             if (isGameOver) return;
 
-            // Cipta pokok di kiri landasan
             const leftX = -5 - Math.random() * 3;
             createTree(leftX, -80);
 
-            // Cipta pokok di kanan landasan
             const rightX = 5 + Math.random() * 3;
             createTree(rightX, -80);
 
-            // Loop untuk spawn pokok (Lebih kerap daripada rintangan)
             setTimeout(spawnEnvironmentLoop, 300);
         }
 
@@ -283,7 +287,7 @@
             if (isGameOver) return;
             requestAnimationFrame(animate);
 
-            // Fizik Lompatan
+            // Fizik Lompatan (hanya kalau tekan butang atas keyboard)
             if (isJumping) {
                 player.position.y += playerVelocityY;
                 playerVelocityY += gravity;
@@ -295,7 +299,7 @@
                 }
             }
 
-            // Gerakan Jalur Pemain (Interpolasi Halus)
+            // Gerakan Jalur Pemain 
             player.position.x = THREE.MathUtils.lerp(player.position.x, lanes[currentLaneIndex], 0.2);
 
             // Update Rintangan
@@ -310,21 +314,27 @@
                     gameOver();
                 }
 
-                // Buang rintangan yang dah melepasi kamera
+                // Melepasi rintangan
                 if (obstacles[i].position.z > 10) {
                     scene.remove(obstacles[i]);
                     obstacles.splice(i, 1);
                     score += 10;
                     document.getElementById('score').innerText = "Skor: " + score;
-                    gameSpeed += 0.0005; // Kelajuan bertambah sedikit
+                    
+                    // Kemaskini High Score jika rekod terpecah
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('runnerHighScore', highScore);
+                        document.getElementById('highscore').innerText = "Skor Tertinggi: " + highScore;
+                    }
+                    
+                    gameSpeed += 0.0005; 
                 }
             }
 
             // Update Pokok (Pemandangan)
             for (let i = trees.length - 1; i >= 0; i--) {
                 trees[i].position.z += gameSpeed;
-
-                // Buang pokok yang dah melepasi kamera
                 if (trees[i].position.z > 15) {
                     scene.remove(trees[i]);
                     trees.splice(i, 1);
@@ -376,3 +386,6 @@
     </script>
 </body>
 </html>
+
+
+
