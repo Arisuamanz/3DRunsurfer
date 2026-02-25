@@ -391,12 +391,16 @@
                     edgeColor = 0xff0000;
                     yPos = 0.6;
                 } else {
-                    // PALANG HIJAU ATAS - Saiz dibesarkan ke atas (Tinggi 3.5 dari 1.5)
-                    // Kedudukan bawah tetap sama pada paras slide (yPos diselaraskan)
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 3.5, 1.2);
-                    obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x00ff00, emissiveIntensity: 0.6 });
+                    obsMat = new THREE.MeshStandardMaterial({ 
+                        color: 0x00ff00, 
+                        emissive: 0x00ff00, 
+                        emissiveIntensity: 0.5,
+                        transparent: true,
+                        opacity: 0.35
+                    });
                     edgeColor = 0x00ff00;
-                    yPos = 3.0; // Bahagian bawah palang kekal pada 1.25 (3.0 - 1.75)
+                    yPos = 3.0; 
                 }
             } else {
                 const lane = Math.floor(Math.random() * 3) - 1; 
@@ -413,10 +417,12 @@
                     edgeColor = 0xff00ff;
                     yPos = 2.0; 
                 } else {
-                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 3, 1.2);
+                    // DINDING KUNING TINGGI (Tukar Laluan)
+                    // Saiz ditingkatkan 1.5x (Ketinggian 4.5 daripada 3)
+                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 4.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffff00, emissiveIntensity: 0.5 });
                     edgeColor = 0xffff00;
-                    yPos = 1.5;
+                    yPos = 2.25; // 4.5 / 2 supaya menyentuh lantai
                 }
             }
 
