@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Larian Neon 3D - Survival & High Score</title>
+    <title>Larian Neon 3D - Survival & Tier System</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700;800&display=swap');
 
         body {
             margin: 0;
@@ -38,7 +38,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 20px 30px;
+            padding: 15px 25px; 
             width: 100%;
             box-sizing: border-box;
             font-weight: 700;
@@ -46,18 +46,48 @@
             letter-spacing: 2px;
         }
         .score-box {
-            font-size: 36px;
+            font-size: 31px; 
             color: #fff;
             text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
         }
         .highscore-box {
-            font-size: 24px;
-            color: #ffd700;
-            text-shadow: 0 0 10px #ffaa00, 0 0 20px #ffaa00;
+            font-size: 21px; 
+            color: #fff;
             text-align: right;
+            line-height: 1.1;
         }
         
-        /* --- SKRIN MENU & GAME OVER --- */
+        /* --- SISTEM TIER (WARNA & GLOW) --- */
+        .tier-badge {
+            font-size: 28px; 
+            font-weight: 800;
+            display: inline-block;
+        }
+        .tier-d { color: #888888; text-shadow: none; filter: none; }
+        .tier-c { color: #00ff00; text-shadow: 0 0 8px rgba(0, 255, 0, 0.7); filter: none; }
+        .tier-b { 
+            background: linear-gradient(135deg, #00d2ff, #0055ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(0, 210, 255, 0.8));
+        }
+        .tier-a { 
+            color: #d500ff;
+            text-shadow: 0 0 15px #d500ff, 0 0 30px #9400d3, 0 0 45px #9400d3;
+            filter: none;
+        }
+        .tier-s { 
+            background: linear-gradient(to bottom, #fff700, #ffaa00, #ffaa00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px rgba(255, 215, 0, 1)) drop-shadow(0 0 30px rgba(255, 170, 0, 0.9));
+            animation: glow-s 1.5s infinite alternate;
+        }
+        @keyframes glow-s {
+            0% { filter: drop-shadow(0 0 15px #ffcc00) drop-shadow(0 0 30px #ff8800); }
+            100% { filter: drop-shadow(0 0 25px #ffff00) drop-shadow(0 0 50px #ffaa00); }
+        }
+
         #screens {
             position: absolute;
             top: 0;
@@ -124,7 +154,6 @@
         .hidden { display: none !important; }
         .neon-text-blue { color: #00ffff; text-shadow: 0 0 10px #00ffff; }
         
-        /* Animasi Rekod Baru */
         .new-record-anim {
             color: #00ff00;
             text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
@@ -147,12 +176,14 @@
     <div id="ui-layer">
         <div class="hud-container">
             <div class="score-box">Jarak: <span id="score">0</span> m</div>
-            <div class="highscore-box">Rekod: <br><span id="high-score">0</span> m</div>
+            <div class="highscore-box">
+                Rekod: <span id="high-score">0</span> m<br>
+                Tahap <span id="hud-tier" class="tier-badge">D</span>
+            </div>
         </div>
     </div>
 
     <div id="screens">
-        <!-- SKRIN MULA -->
         <div id="start-screen" class="screen-content">
             <h1>Larian <span class="neon-text-blue">Neon</span></h1>
             <p>Bertahan sejauh mungkin!<br><br>
@@ -162,26 +193,23 @@
             <button id="start-btn">Mula Larian</button>
         </div>
         
-        <!-- SKRIN MATI (GAME OVER) -->
         <div id="game-over-screen" class="screen-content hidden">
             <h1 style="color: #ff003c; text-shadow: 0 0 20px #ff003c;">Hancur!</h1>
-            
             <div id="new-record-msg" class="new-record-anim hidden">🎉 REKOD BARU! 🎉</div>
-            
-            <p style="margin-bottom: 10px;">Jarak Larian Anda:<br>
+            <p style="margin-bottom: 15px;">Jarak Larian Anda:<br>
                <span id="final-score" style="font-size: 45px; color: #fff; text-shadow: 0 0 15px #00ffff; font-weight: bold;">0</span> m
             </p>
-            <p style="margin-top: 0; color: #ffd700; text-shadow: 0 0 10px #ffaa00;">Rekod Tertinggi: <span id="best-score">0</span> m</p>
-            
+            <p style="margin-top: 0; color: #ccc; font-size: 22px;">
+                Rekod Tertinggi: <span id="best-score" style="font-weight: bold;">0</span> m<br>
+                Tahap Rekod: <span id="game-over-tier" class="tier-badge" style="font-size: 30px;">D</span>
+            </p>
             <button id="restart-btn">Cuba Lagi</button>
         </div>
     </div>
 
-    <!-- Import Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        // --- PEMBOLEH UBAH PERMAINAN ---
         let scene, camera, renderer;
         let player;
         let obstacles = [];
@@ -193,11 +221,17 @@
         let gameSpeed = 0.5;
         const LANE_WIDTH = 3.5;
         
-        // --- SISTEM HIGH SCORE (LOCAL STORAGE) ---
         let highScore = localStorage.getItem('neonRunnerHighScore');
         highScore = highScore ? parseInt(highScore) : 0;
         
-        // Status Pemain
+        function getTierDetails(scoreValue) {
+            if (scoreValue <= 1000) return { name: 'D', class: 'tier-d' };
+            if (scoreValue <= 2000) return { name: 'C', class: 'tier-c' };
+            if (scoreValue <= 3000) return { name: 'B', class: 'tier-b' };
+            if (scoreValue <= 4000) return { name: 'A', class: 'tier-a' };
+            return { name: 'S', class: 'tier-s' };
+        }
+
         let currentLane = 0; 
         let isJumping = false;
         let isSliding = false;
@@ -207,26 +241,36 @@
         let slideTimer = 0;
         const playerBaseY = 1; 
         
-        // Elemen DOM
         const scoreEl = document.getElementById('score');
         const highScoreEl = document.getElementById('high-score');
+        const hudTierEl = document.getElementById('hud-tier');
         const screensEl = document.getElementById('screens');
         const startScreen = document.getElementById('start-screen');
         const gameOverScreen = document.getElementById('game-over-screen');
         const finalScoreEl = document.getElementById('final-score');
         const bestScoreEl = document.getElementById('best-score');
+        const gameOverTierEl = document.getElementById('game-over-tier');
         const newRecordMsg = document.getElementById('new-record-msg');
         
-        highScoreEl.innerText = highScore;
+        function applyTierStyle(element, tierInfo) {
+            element.classList.remove('tier-d', 'tier-c', 'tier-b', 'tier-a', 'tier-s');
+            element.classList.add(tierInfo.class);
+        }
 
-        // Sistem Penjanaan berasaskan Jarak
+        function setInitialScoreDisplay() {
+            highScoreEl.innerText = highScore;
+            let initialTier = getTierDetails(highScore);
+            hudTierEl.innerText = initialTier.name;
+            applyTierStyle(hudTierEl, initialTier);
+            applyTierStyle(highScoreEl, initialTier);
+        }
+        setInitialScoreDisplay();
+
         let nextObstacleDistance = 30; 
         let sceneryDistance = 10;
 
-        // --- MULAKAN THREE.JS ---
         function init() {
             const container = document.getElementById('game-container');
-            
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x05010a);
             scene.fog = new THREE.FogExp2(0x0a001a, 0.012); 
@@ -241,7 +285,6 @@
 
             const ambientLight = new THREE.AmbientLight(0x222244, 1.5); 
             scene.add(ambientLight);
-
             const hemiLight = new THREE.HemisphereLight(0xff00ff, 0x00ffff, 0.8);
             scene.add(hemiLight);
 
@@ -276,23 +319,18 @@
                 color: 0x00ffff, emissive: 0x0088ff, emissiveIntensity: 0.8, roughness: 0.2
             });
             player = new THREE.Mesh(geo, mat);
-            
             const edges = new THREE.EdgesGeometry(geo);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
             player.add(line);
-
             player.position.set(0, playerBaseY, 0);
             scene.add(player);
         }
-
-        // --- MEKANIK PERMAINAN ---
 
         function startGame() {
             screensEl.classList.add('hidden');
             startScreen.classList.add('hidden');
             gameOverScreen.classList.add('hidden');
             newRecordMsg.classList.add('hidden'); 
-            
             score = 0;
             gameSpeed = 0.5; 
             nextObstacleDistance = 30;
@@ -301,10 +339,9 @@
             isJumping = false;
             isSliding = false;
             yVelocity = 0;
-            
             player.position.set(0, playerBaseY, 0);
             player.scale.y = 1;
-            
+            setInitialScoreDisplay(); 
             updateHUD();
 
             obstacles.forEach(obs => {
@@ -317,10 +354,8 @@
                 s.mesh.geometry.dispose();
                 s.mesh.material.dispose();
             });
-            
             obstacles = [];
             scenery = [];
-
             gameActive = true;
             animate();
         }
@@ -328,66 +363,56 @@
         function gameOver() {
             gameActive = false;
             let currentFinalScore = Math.floor(score);
-            
             if (currentFinalScore > highScore) {
                 highScore = currentFinalScore;
                 localStorage.setItem('neonRunnerHighScore', highScore); 
                 newRecordMsg.classList.remove('hidden'); 
-                highScoreEl.innerText = highScore; 
             }
-
+            let finalTier = getTierDetails(highScore);
             screensEl.classList.remove('hidden');
             gameOverScreen.classList.remove('hidden');
             finalScoreEl.innerText = currentFinalScore;
             bestScoreEl.innerText = highScore;
+            applyTierStyle(bestScoreEl, finalTier);
+            gameOverTierEl.innerText = finalTier.name;
+            applyTierStyle(gameOverTierEl, finalTier);
         }
 
-        // --- PENJANAAN OBJEK (DENGAN HALANGAN BAHARU) ---
-
         function spawnObstacle() {
-            // Peluang 15% untuk munculnya halangan "Rare" (3 laluan penuh)
             const isRare = Math.random() < 0.15; 
-            
             let obsGeo, obsMat, edgeColor, yPos, xPos;
 
             if (isRare) {
-                // --- HALANGAN JARANG MUNCUL (3 LALUAN PENUH) ---
                 const rareType = Math.random();
-                xPos = 0; // Duduk di tengah-tengah untuk halang semua laluan
-
+                xPos = 0; 
                 if (rareType < 0.5) {
-                    // Dinding Bawah Penuh 3 Laluan (Mesti Lompat) - Neon Merah
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 1.2, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xff0000, emissiveIntensity: 0.6 });
                     edgeColor = 0xff0000;
                     yPos = 0.6;
                 } else {
-                    // Dinding Atas Penuh 3 Laluan (Mesti Meluncur/Slide) - Neon Hijau
-                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 1.5, 1.2);
+                    // PALANG HIJAU ATAS - Saiz dibesarkan ke atas (Tinggi 3.5 dari 1.5)
+                    // Kedudukan bawah tetap sama pada paras slide (yPos diselaraskan)
+                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 3.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x00ff00, emissiveIntensity: 0.6 });
                     edgeColor = 0x00ff00;
-                    yPos = 2.0;
+                    yPos = 3.0; // Bahagian bawah palang kekal pada 1.25 (3.0 - 1.75)
                 }
             } else {
-                // --- HALANGAN BIASA (1 LALUAN SAHAJA) ---
                 const lane = Math.floor(Math.random() * 3) - 1; 
                 const type = Math.random();
                 xPos = lane * LANE_WIDTH;
-
                 if (type < 0.3) {
-                    // Halangan Biasa Bawah (Lompat) - Cyan
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 1.2, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x00ffff, emissiveIntensity: 0.5 });
                     edgeColor = 0x00ffff;
                     yPos = 0.6; 
                 } else if (type < 0.6) {
-                    // Halangan Biasa Atas Udara (Slide) - Magenta
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 1.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xff00ff, emissiveIntensity: 0.5 });
                     edgeColor = 0xff00ff;
                     yPos = 2.0; 
                 } else {
-                    // Dinding Penuh (Tukar Laluan) - Kuning
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 3, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffff00, emissiveIntensity: 0.5 });
                     edgeColor = 0xffff00;
@@ -399,10 +424,8 @@
             const edges = new THREE.EdgesGeometry(obsGeo);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: edgeColor }));
             obstacle.add(line);
-
             obstacle.position.set(xPos, yPos, -180); 
             scene.add(obstacle);
-            
             obstacles.push({ mesh: obstacle });
         }
 
@@ -411,7 +434,6 @@
             const xPos = (LANE_WIDTH * 2 + 5 + Math.random() * 10) * (isLeft ? -1 : 1);
             const isPyramid = Math.random() > 0.5;
             let geo, color;
-
             if (isPyramid) {
                 geo = new THREE.ConeGeometry(3 + Math.random()*2, 8 + Math.random()*10, 4);
                 color = 0x00ffff; 
@@ -419,55 +441,43 @@
                 geo = new THREE.BoxGeometry(2 + Math.random()*4, 10 + Math.random()*20, 2 + Math.random()*4);
                 color = 0xff00ff; 
             }
-
             const mat = new THREE.MeshBasicMaterial({ color: 0x05010a });
             const mesh = new THREE.Mesh(geo, mat);
             const edges = new THREE.EdgesGeometry(geo);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: color }));
             mesh.add(line);
-
             mesh.position.set(xPos, geo.parameters.height/2 || geo.parameters.radius, -200);
             scene.add(mesh);
             scenery.push({ mesh: mesh, speedOffset: Math.random() * 0.2 });
         }
 
-        // --- GELUNG PERMAINAN (ANIMASI UTAMA) ---
-
         function animate() {
             if (!gameActive) return;
             requestAnimationFrame(animate);
-
             gameSpeed += 0.0001; 
             score += gameSpeed * 0.5;
             updateHUD();
-
             movingGrid.position.z += gameSpeed;
             if (movingGrid.position.z >= 2) movingGrid.position.z -= 2; 
-
             if (score > nextObstacleDistance) {
                 spawnObstacle();
                 nextObstacleDistance = score + (15 + Math.random() * 20); 
             }
-
             if (score > sceneryDistance) {
                 spawnScenery();
                 sceneryDistance = score + 5 + Math.random() * 10;
             }
-
             const targetX = currentLane * LANE_WIDTH;
             player.position.x += (targetX - player.position.x) * 0.25; 
-            
             if (isJumping) {
                 yVelocity += gravity;
                 player.position.y += yVelocity;
-                
                 if (player.position.y <= playerBaseY) {
                     player.position.y = playerBaseY;
                     isJumping = false;
                     yVelocity = 0;
                 }
             }
-
             if (isSliding) {
                 slideTimer--;
                 if (slideTimer <= 0) {
@@ -476,21 +486,16 @@
                     if(!isJumping) player.position.y = playerBaseY; 
                 }
             }
-
             const playerBox = new THREE.Box3().setFromObject(player);
             playerBox.expandByScalar(-0.3);
-
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i].mesh;
                 obs.position.z += gameSpeed; 
-
                 const obsBox = new THREE.Box3().setFromObject(obs);
-                
                 if (playerBox.intersectsBox(obsBox)) {
                     gameOver();
                     return; 
                 }
-
                 if (obs.position.z > 20) {
                     scene.remove(obs);
                     obs.geometry.dispose();
@@ -498,11 +503,9 @@
                     obstacles.splice(i, 1);
                 }
             }
-
             for (let i = scenery.length - 1; i >= 0; i--) {
                 let s = scenery[i].mesh;
                 s.position.z += gameSpeed + scenery[i].speedOffset; 
-                
                 if (s.position.z > 30) {
                     scene.remove(s);
                     s.geometry.dispose();
@@ -510,30 +513,27 @@
                     scenery.splice(i, 1);
                 }
             }
-
             camera.position.x = player.position.x * 0.3;
             camera.position.y = 6 + (player.position.y - playerBaseY) * 0.2; 
             camera.lookAt(player.position.x * 0.1, 2, -20);
-
             renderer.render(scene, camera);
         }
 
         function updateHUD() {
             let currentScore = Math.floor(score);
             scoreEl.innerText = currentScore;
-            
             if (currentScore > highScore) {
-                highScoreEl.innerText = currentScore;
-                highScoreEl.style.color = "#00ff00"; 
-                highScoreEl.style.textShadow = "0 0 10px #00ff00";
+                highScore = currentScore; 
+                let currentTier = getTierDetails(highScore);
+                highScoreEl.innerText = highScore;
+                hudTierEl.innerText = currentTier.name;
+                applyTierStyle(highScoreEl, currentTier);
+                applyTierStyle(hudTierEl, currentTier);
             }
         }
 
-        // --- KAWALAN ---
-
         function moveLeft() { if (currentLane > -1) currentLane--; }
         function moveRight() { if (currentLane < 1) currentLane++; }
-
         function jump() {
             if (!isJumping) {
                 isJumping = true;
@@ -541,7 +541,6 @@
                 if (isSliding) { isSliding = false; player.scale.y = 1; }
             }
         }
-
         function slide() {
             if (!isSliding && !isJumping) {
                 isSliding = true;
@@ -563,19 +562,15 @@
                     case 'ArrowDown': case 's': slide(); break;
                 }
             });
-
             let touchStartX = 0, touchStartY = 0;
-
             window.addEventListener('touchstart', (e) => {
                 touchStartX = e.changedTouches[0].screenX;
                 touchStartY = e.changedTouches[0].screenY;
             });
-
             window.addEventListener('touchend', (e) => {
                 if (!gameActive) return;
                 let dx = e.changedTouches[0].screenX - touchStartX;
                 let dy = e.changedTouches[0].screenY - touchStartY;
-                
                 if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
                     if (dx > 0) moveRight(); else moveLeft();
                 } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 30) {
@@ -589,11 +584,8 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-
         window.onload = init;
-
     </script>
 </body>
 </html>
-
 
