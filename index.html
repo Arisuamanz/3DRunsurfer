@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ms">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Larian Neon 3D - Survival & Tier System</title>
+    <title>Neon Runner 3D - Survival</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700;800&display=swap');
 
@@ -21,7 +21,7 @@
             display: block;
         }
         
-        /* --- GAYA ANTARAMUKA (UI) NEON --- */
+        /* --- UI LAYER (ENGLISH) --- */
         #ui-layer {
             position: absolute;
             top: 0;
@@ -57,7 +57,7 @@
             line-height: 1.1;
         }
         
-        /* --- SISTEM TIER (WARNA & GLOW) --- */
+        /* --- TIER SYSTEM STYLES --- */
         .tier-badge {
             font-size: 28px; 
             font-weight: 800;
@@ -88,6 +88,7 @@
             100% { filter: drop-shadow(0 0 25px #ffff00) drop-shadow(0 0 50px #ffaa00); }
         }
 
+        /* --- SCREENS (ENGLISH) --- */
         #screens {
             position: absolute;
             top: 0;
@@ -175,42 +176,46 @@
 
     <div id="ui-layer">
         <div class="hud-container">
-            <div class="score-box">Jarak: <span id="score">0</span> m</div>
+            <div class="score-box">Distance: <span id="score">0</span> m</div>
             <div class="highscore-box">
-                Rekod: <span id="high-score">0</span> m<br>
-                Tahap <span id="hud-tier" class="tier-badge">D</span>
+                Best: <span id="high-score">0</span> m<br>
+                Tier <span id="hud-tier" class="tier-badge">D</span>
             </div>
         </div>
     </div>
 
     <div id="screens">
+        <!-- START MENU -->
         <div id="start-screen" class="screen-content">
-            <h1>Larian <span class="neon-text-blue">Neon</span></h1>
-            <p>Bertahan sejauh mungkin!<br><br>
-               <span style="color:#00ffff">Kiri/Kanan</span> = Tukar Laluan<br>
-               <span style="color:#ff00ff">Atas</span> = Lompat | <span style="color:#ffff00">Bawah</span> = Meluncur
+            <h1>Neon <span class="neon-text-blue">Runner</span></h1>
+            <p>Survive as long as you can!<br><br>
+               <span style="color:#00ffff">Swipe Left/Right</span> = Switch Lane<br>
+               <span style="color:#ff00ff">Swipe Up</span> = Jump | <span style="color:#ffff00">Swipe Down</span> = Slide
             </p>
-            <button id="start-btn">Mula Larian</button>
+            <button id="start-btn">Start Run</button>
         </div>
         
+        <!-- GAME OVER SCREEN -->
         <div id="game-over-screen" class="screen-content hidden">
-            <h1 style="color: #ff003c; text-shadow: 0 0 20px #ff003c;">Hancur!</h1>
-            <div id="new-record-msg" class="new-record-anim hidden">🎉 REKOD BARU! 🎉</div>
-            <p style="margin-bottom: 15px;">Jarak Larian Anda:<br>
+            <h1 style="color: #ff003c; text-shadow: 0 0 20px #ff003c;">Crashed!</h1>
+            <div id="new-record-msg" class="new-record-anim hidden">🎉 NEW RECORD! 🎉</div>
+            <p style="margin-bottom: 15px;">Your Distance:<br>
                <span id="final-score" style="font-size: 45px; color: #fff; text-shadow: 0 0 15px #00ffff; font-weight: bold;">0</span> m
             </p>
             <p style="margin-top: 0; color: #ccc; font-size: 22px;">
-                Rekod Tertinggi: <span id="best-score" style="font-weight: bold;">0</span> m<br>
-                Tahap Rekod: <span id="game-over-tier" class="tier-badge" style="font-size: 30px;">D</span>
+                High Score: <span id="best-score" style="font-weight: bold;">0</span> m<br>
+                Record Tier: <span id="game-over-tier" class="tier-badge" style="font-size: 30px;">D</span>
             </p>
-            <button id="restart-btn">Cuba Lagi</button>
+            <button id="restart-btn">Try Again</button>
         </div>
     </div>
 
+    <!-- Import Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        let scene, camera, renderer;
+        // --- VARIABEL GLOBAL ---
+        let scene, camera, renderer, clock;
         let player;
         let obstacles = [];
         let scenery = [];
@@ -218,9 +223,11 @@
         
         let gameActive = false;
         let score = 0; 
-        let gameSpeed = 0.5;
+        let lastSpeedMilestone = 0; // Menjejak pencapaian skor 100 terakhir
+        let gameSpeed = 30; // Kelajuan asas sesaat
         const LANE_WIDTH = 3.5;
         
+        // --- STORAGE & TIER SYSTEM ---
         let highScore = localStorage.getItem('neonRunnerHighScore');
         highScore = highScore ? parseInt(highScore) : 0;
         
@@ -232,15 +239,17 @@
             return { name: 'S', class: 'tier-s' };
         }
 
+        // --- STATUS PEMAIN ---
         let currentLane = 0; 
         let isJumping = false;
         let isSliding = false;
         let yVelocity = 0;
-        let gravity = -0.018;
-        let jumpPower = 0.4;
+        let gravity = -65; // Graviti sesaat kuadrat
+        let jumpPower = 25; // Kekuatan lompatan sesaat
         let slideTimer = 0;
         const playerBaseY = 1; 
         
+        // --- DOM ELEMENTS ---
         const scoreEl = document.getElementById('score');
         const highScoreEl = document.getElementById('high-score');
         const hudTierEl = document.getElementById('hud-tier');
@@ -252,6 +261,9 @@
         const gameOverTierEl = document.getElementById('game-over-tier');
         const newRecordMsg = document.getElementById('new-record-msg');
         
+        // Jam untuk Delta Time
+        clock = new THREE.Clock();
+
         function applyTierStyle(element, tierInfo) {
             element.classList.remove('tier-d', 'tier-c', 'tier-b', 'tier-a', 'tier-s');
             element.classList.add(tierInfo.class);
@@ -269,6 +281,7 @@
         let nextObstacleDistance = 30; 
         let sceneryDistance = 10;
 
+        // --- INITIALIZE ---
         function init() {
             const container = document.getElementById('game-container');
             scene = new THREE.Scene();
@@ -281,6 +294,7 @@
 
             renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
             container.appendChild(renderer.domElement);
 
             const ambientLight = new THREE.AmbientLight(0x222244, 1.5); 
@@ -331,19 +345,24 @@
             startScreen.classList.add('hidden');
             gameOverScreen.classList.add('hidden');
             newRecordMsg.classList.add('hidden'); 
+            
             score = 0;
-            gameSpeed = 0.5; 
+            lastSpeedMilestone = 0;
+            gameSpeed = 30; 
             nextObstacleDistance = 30;
             sceneryDistance = 10;
             currentLane = 0;
             isJumping = false;
             isSliding = false;
             yVelocity = 0;
+            
             player.position.set(0, playerBaseY, 0);
             player.scale.y = 1;
+            
             setInitialScoreDisplay(); 
             updateHUD();
 
+            // Cuci rintangan lama
             obstacles.forEach(obs => {
                 scene.remove(obs.mesh);
                 obs.mesh.geometry.dispose();
@@ -356,7 +375,9 @@
             });
             obstacles = [];
             scenery = [];
+            
             gameActive = true;
+            clock.start(); 
             animate();
         }
 
@@ -378,6 +399,7 @@
             applyTierStyle(gameOverTierEl, finalTier);
         }
 
+        // --- SPAWN OBJEK ---
         function spawnObstacle() {
             const isRare = Math.random() < 0.15; 
             let obsGeo, obsMat, edgeColor, yPos, xPos;
@@ -386,11 +408,13 @@
                 const rareType = Math.random();
                 xPos = 0; 
                 if (rareType < 0.5) {
+                    // Dinding Bawah Penuh 3 Laluan (Mesti Lompat) - Neon Merah
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 1.2, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xff0000, emissiveIntensity: 0.6 });
                     edgeColor = 0xff0000;
                     yPos = 0.6;
                 } else {
+                    // Palang Hijau Atas Lutsinar (Mesti Slide)
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 3.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ 
                         color: 0x00ff00, 
@@ -417,12 +441,11 @@
                     edgeColor = 0xff00ff;
                     yPos = 2.0; 
                 } else {
-                    // DINDING KUNING TINGGI (Tukar Laluan)
-                    // Saiz ditingkatkan 1.5x (Ketinggian 4.5 daripada 3)
+                    // Dinding Kuning Tinggi 1.5x
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 4.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffff00, emissiveIntensity: 0.5 });
                     edgeColor = 0xffff00;
-                    yPos = 2.25; // 4.5 / 2 supaya menyentuh lantai
+                    yPos = 2.25; 
                 }
             }
 
@@ -454,54 +477,88 @@
             mesh.add(line);
             mesh.position.set(xPos, geo.parameters.height/2 || geo.parameters.radius, -200);
             scene.add(mesh);
-            scenery.push({ mesh: mesh, speedOffset: Math.random() * 0.2 });
+            scenery.push({ mesh: mesh, speedOffset: Math.random() * 10 });
         }
 
+        // --- ANIMATE WITH DELTA TIME ---
         function animate() {
             if (!gameActive) return;
             requestAnimationFrame(animate);
-            gameSpeed += 0.0001; 
-            score += gameSpeed * 0.5;
+            
+            const delta = clock.getDelta();
+            const clampedDelta = Math.min(delta, 0.1); 
+
+            // Kira skor berdasarkan masa dan kelajuan
+            score += gameSpeed * 0.8 * clampedDelta;
+
+            // LOGIK PENINGKATAN KELAJUAN: +2 unit sesaat setiap 100 skor
+            let currentMilestone = Math.floor(score / 100) * 100;
+            if (currentMilestone > lastSpeedMilestone) {
+                let increments = (currentMilestone - lastSpeedMilestone) / 100;
+                gameSpeed += 2.0 * increments; // Tambah 2 unit sesaat bagi setiap 100 markah
+                lastSpeedMilestone = currentMilestone;
+            }
+
             updateHUD();
-            movingGrid.position.z += gameSpeed;
-            if (movingGrid.position.z >= 2) movingGrid.position.z -= 2; 
+
+            // Gerakkan Grid Lantai
+            movingGrid.position.z += gameSpeed * clampedDelta;
+            if (movingGrid.position.z >= 2) movingGrid.position.z %= 2; 
+
+            // Spawn halangan/hiasan
             if (score > nextObstacleDistance) {
                 spawnObstacle();
                 nextObstacleDistance = score + (15 + Math.random() * 20); 
             }
+
             if (score > sceneryDistance) {
                 spawnScenery();
                 sceneryDistance = score + 5 + Math.random() * 10;
             }
+
+            // --- PLAYER PHYSICS (FRAME INDEPENDENT) ---
+            
+            // X Axis (Perpindahan Jalur)
             const targetX = currentLane * LANE_WIDTH;
-            player.position.x += (targetX - player.position.x) * 0.25; 
+            player.position.x += (targetX - player.position.x) * 15 * clampedDelta; 
+            
+            // Y Axis (Graviti & Lompatan)
             if (isJumping) {
-                yVelocity += gravity;
-                player.position.y += yVelocity;
+                yVelocity += gravity * clampedDelta; 
+                player.position.y += yVelocity * clampedDelta; 
+                
                 if (player.position.y <= playerBaseY) {
                     player.position.y = playerBaseY;
                     isJumping = false;
                     yVelocity = 0;
                 }
             }
+
+            // Slide duration
             if (isSliding) {
-                slideTimer--;
+                slideTimer -= clampedDelta;
                 if (slideTimer <= 0) {
                     isSliding = false;
                     player.scale.y = 1; 
                     if(!isJumping) player.position.y = playerBaseY; 
                 }
             }
+
+            // Collision Check
             const playerBox = new THREE.Box3().setFromObject(player);
             playerBox.expandByScalar(-0.3);
+
+            // Update Obstacles
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i].mesh;
-                obs.position.z += gameSpeed; 
+                obs.position.z += gameSpeed * clampedDelta; 
+
                 const obsBox = new THREE.Box3().setFromObject(obs);
                 if (playerBox.intersectsBox(obsBox)) {
                     gameOver();
                     return; 
                 }
+
                 if (obs.position.z > 20) {
                     scene.remove(obs);
                     obs.geometry.dispose();
@@ -509,9 +566,11 @@
                     obstacles.splice(i, 1);
                 }
             }
+
+            // Update Scenery
             for (let i = scenery.length - 1; i >= 0; i--) {
                 let s = scenery[i].mesh;
-                s.position.z += gameSpeed + scenery[i].speedOffset; 
+                s.position.z += (gameSpeed + scenery[i].speedOffset) * clampedDelta; 
                 if (s.position.z > 30) {
                     scene.remove(s);
                     s.geometry.dispose();
@@ -519,9 +578,12 @@
                     scenery.splice(i, 1);
                 }
             }
-            camera.position.x = player.position.x * 0.3;
-            camera.position.y = 6 + (player.position.y - playerBaseY) * 0.2; 
+
+            // Kamera Ikut Pemain
+            camera.position.x += (player.position.x * 0.3 - camera.position.x) * 5 * clampedDelta;
+            camera.position.y += (6 + (player.position.y - playerBaseY) * 0.2 - camera.position.y) * 5 * clampedDelta;
             camera.lookAt(player.position.x * 0.1, 2, -20);
+
             renderer.render(scene, camera);
         }
 
@@ -538,6 +600,7 @@
             }
         }
 
+        // --- CONTROLS ---
         function moveLeft() { if (currentLane > -1) currentLane--; }
         function moveRight() { if (currentLane < 1) currentLane++; }
         function jump() {
@@ -550,11 +613,11 @@
         function slide() {
             if (!isSliding && !isJumping) {
                 isSliding = true;
-                slideTimer = 35; 
+                slideTimer = 0.6; 
                 player.scale.y = 0.4; 
                 player.position.y = playerBaseY * 0.4; 
             } else if (isJumping) {
-                yVelocity -= 0.3; 
+                yVelocity = -jumpPower; // Force slam down
             }
         }
 
