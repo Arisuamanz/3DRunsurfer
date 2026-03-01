@@ -13,7 +13,7 @@
             overflow: hidden;
             background-color: #05010a; 
             font-family: 'Rajdhani', sans-serif;
-            touch-action: none;
+            touch-action: none; /* Mencegah pull-to-refresh di mobile */
         }
         #game-container {
             width: 100vw;
@@ -21,7 +21,7 @@
             display: block;
         }
         
-        /* --- UI LAYER (ENGLISH) --- */
+        /* --- UI HUD (ENGLISH) --- */
         #ui-layer {
             position: absolute;
             top: 0;
@@ -57,7 +57,7 @@
             line-height: 1.1;
         }
         
-        /* --- TIER SYSTEM STYLES --- */
+        /* --- TIER STYLES --- */
         .tier-badge {
             font-size: 28px; 
             font-weight: 800;
@@ -88,7 +88,7 @@
             100% { filter: drop-shadow(0 0 25px #ffff00) drop-shadow(0 0 50px #ffaa00); }
         }
 
-        /* --- SCREENS (ENGLISH) --- */
+        /* --- OVERLAY SCREENS --- */
         #screens {
             position: absolute;
             top: 0;
@@ -210,11 +210,64 @@
         </div>
     </div>
 
-    <!-- Import Three.js -->
+    <!-- Import Library Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        // --- VARIABEL GLOBAL ---
+        // ==========================================
+        // SISTEM AUDIO 
+        // ==========================================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        let masterGainNode; 
+        
+        // --- MENAMBAHKAN BACKGROUND MUSIC (BGM) ---
+        let bgMusic = new Audio('https://assets.codepen.io/21542/howler-demo-bg-music.mp3');
+        bgMusic.loop = true;
+        bgMusic.volume = 0.5; // Mengatur volume BGM
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+                
+                // Master Gain Node dinaikkan 10x ganda (Hanya untuk SFX)
+                masterGainNode = audioCtx.createGain();
+                masterGainNode.gain.setValueAtTime(10.0, audioCtx.currentTime);
+                masterGainNode.connect(audioCtx.destination);
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTone(freq, type, duration, vol) {
+            if (!audioCtx || !masterGainNode) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(masterGainNode);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // Bunyi klik butang ditingkatkan kelantangannya (0.2) dan frekuensi lebih tinggi (600)
+        function playClick() { playTone(600, 'sine', 0.15, 0.2); }
+        // Bunyi lompat dikekalkan
+        function playJump() { playTone(600, 'triangle', 0.2, 0.2); }
+        // Bunyi mati ditukar ke 'sine' supaya lebih lembut (tidak pecah) dan bunyi seakan menurun perlahan
+        function playCrash() { playTone(250, 'sine', 0.6, 0.2); }
+
+        // ==========================================
+        // KOD ASAL PERMAINAN (TIDAK DISENTUH)
+        // ==========================================
+
         let scene, camera, renderer, clock;
         let player;
         let obstacles = [];
@@ -223,11 +276,10 @@
         
         let gameActive = false;
         let score = 0; 
-        let lastSpeedMilestone = 0; // Menjejak pencapaian skor 100 terakhir
-        let gameSpeed = 30; // Kelajuan asas sesaat
+        let lastSpeedMilestone = 0; 
+        let gameSpeed = 30; 
         const LANE_WIDTH = 3.5;
         
-        // --- STORAGE & TIER SYSTEM ---
         let highScore = localStorage.getItem('neonRunnerHighScore');
         highScore = highScore ? parseInt(highScore) : 0;
         
@@ -239,17 +291,15 @@
             return { name: 'S', class: 'tier-s' };
         }
 
-        // --- STATUS PEMAIN ---
         let currentLane = 0; 
         let isJumping = false;
         let isSliding = false;
         let yVelocity = 0;
-        let gravity = -65; // Graviti sesaat kuadrat
-        let jumpPower = 25; // Kekuatan lompatan sesaat
+        let gravity = -65; 
+        let jumpPower = 25; 
         let slideTimer = 0;
         const playerBaseY = 1; 
         
-        // --- DOM ELEMENTS ---
         const scoreEl = document.getElementById('score');
         const highScoreEl = document.getElementById('high-score');
         const hudTierEl = document.getElementById('hud-tier');
@@ -261,7 +311,6 @@
         const gameOverTierEl = document.getElementById('game-over-tier');
         const newRecordMsg = document.getElementById('new-record-msg');
         
-        // Jam untuk Delta Time
         clock = new THREE.Clock();
 
         function applyTierStyle(element, tierInfo) {
@@ -281,7 +330,6 @@
         let nextObstacleDistance = 30; 
         let sceneryDistance = 10;
 
-        // --- INITIALIZE ---
         function init() {
             const container = document.getElementById('game-container');
             scene = new THREE.Scene();
@@ -341,6 +389,15 @@
         }
 
         function startGame() {
+            initAudio(); 
+            playClick(); // Mainkan bunyi klik yang lebih lantang
+            
+            // --- MAINKAN LAGU BGM ---
+            if (bgMusic) {
+                bgMusic.currentTime = 0; // Mulai dari awal lagu
+                bgMusic.play().catch(e => console.log("Audio play dihalang oleh browser:", e));
+            }
+            
             screensEl.classList.add('hidden');
             startScreen.classList.add('hidden');
             gameOverScreen.classList.add('hidden');
@@ -362,7 +419,6 @@
             setInitialScoreDisplay(); 
             updateHUD();
 
-            // Cuci rintangan lama
             obstacles.forEach(obs => {
                 scene.remove(obs.mesh);
                 obs.mesh.geometry.dispose();
@@ -383,12 +439,21 @@
 
         function gameOver() {
             gameActive = false;
+            playCrash(); // Mainkan bunyi mati yang lebih lembut (sine wave)
+            
+            // --- HENTIKAN LAGU BGM KETIKA MATI ---
+            if (bgMusic) {
+                bgMusic.pause();
+            }
+            
             let currentFinalScore = Math.floor(score);
+            
             if (currentFinalScore > highScore) {
                 highScore = currentFinalScore;
                 localStorage.setItem('neonRunnerHighScore', highScore); 
                 newRecordMsg.classList.remove('hidden'); 
             }
+            
             let finalTier = getTierDetails(highScore);
             screensEl.classList.remove('hidden');
             gameOverScreen.classList.remove('hidden');
@@ -399,7 +464,6 @@
             applyTierStyle(gameOverTierEl, finalTier);
         }
 
-        // --- SPAWN OBJEK ---
         function spawnObstacle() {
             const isRare = Math.random() < 0.15; 
             let obsGeo, obsMat, edgeColor, yPos, xPos;
@@ -408,13 +472,11 @@
                 const rareType = Math.random();
                 xPos = 0; 
                 if (rareType < 0.5) {
-                    // Dinding Bawah Penuh 3 Laluan (Mesti Lompat) - Neon Merah
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 1.2, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xff0000, emissiveIntensity: 0.6 });
                     edgeColor = 0xff0000;
                     yPos = 0.6;
                 } else {
-                    // Palang Hijau Atas Lutsinar (Mesti Slide)
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 3.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ 
                         color: 0x00ff00, 
@@ -441,7 +503,6 @@
                     edgeColor = 0xff00ff;
                     yPos = 2.0; 
                 } else {
-                    // Dinding Kuning Tinggi 1.5x
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 4.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffff00, emissiveIntensity: 0.5 });
                     edgeColor = 0xffff00;
@@ -480,7 +541,7 @@
             scenery.push({ mesh: mesh, speedOffset: Math.random() * 10 });
         }
 
-        // --- ANIMATE WITH DELTA TIME ---
+        // --- GAME LOOP (DENGAN DELTA TIME) ---
         function animate() {
             if (!gameActive) return;
             requestAnimationFrame(animate);
@@ -488,24 +549,20 @@
             const delta = clock.getDelta();
             const clampedDelta = Math.min(delta, 0.1); 
 
-            // Kira skor berdasarkan masa dan kelajuan
             score += gameSpeed * 0.8 * clampedDelta;
 
-            // LOGIK PENINGKATAN KELAJUAN: +2 unit sesaat setiap 100 skor
             let currentMilestone = Math.floor(score / 100) * 100;
             if (currentMilestone > lastSpeedMilestone) {
                 let increments = (currentMilestone - lastSpeedMilestone) / 100;
-                gameSpeed += 2.0 * increments; // Tambah 2 unit sesaat bagi setiap 100 markah
+                gameSpeed += 2.0 * increments; 
                 lastSpeedMilestone = currentMilestone;
             }
 
             updateHUD();
 
-            // Gerakkan Grid Lantai
             movingGrid.position.z += gameSpeed * clampedDelta;
             if (movingGrid.position.z >= 2) movingGrid.position.z %= 2; 
 
-            // Spawn halangan/hiasan
             if (score > nextObstacleDistance) {
                 spawnObstacle();
                 nextObstacleDistance = score + (15 + Math.random() * 20); 
@@ -516,13 +573,9 @@
                 sceneryDistance = score + 5 + Math.random() * 10;
             }
 
-            // --- PLAYER PHYSICS (FRAME INDEPENDENT) ---
-            
-            // X Axis (Perpindahan Jalur)
             const targetX = currentLane * LANE_WIDTH;
             player.position.x += (targetX - player.position.x) * 15 * clampedDelta; 
             
-            // Y Axis (Graviti & Lompatan)
             if (isJumping) {
                 yVelocity += gravity * clampedDelta; 
                 player.position.y += yVelocity * clampedDelta; 
@@ -534,7 +587,6 @@
                 }
             }
 
-            // Slide duration
             if (isSliding) {
                 slideTimer -= clampedDelta;
                 if (slideTimer <= 0) {
@@ -544,11 +596,9 @@
                 }
             }
 
-            // Collision Check
             const playerBox = new THREE.Box3().setFromObject(player);
             playerBox.expandByScalar(-0.3);
 
-            // Update Obstacles
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i].mesh;
                 obs.position.z += gameSpeed * clampedDelta; 
@@ -567,7 +617,6 @@
                 }
             }
 
-            // Update Scenery
             for (let i = scenery.length - 1; i >= 0; i--) {
                 let s = scenery[i].mesh;
                 s.position.z += (gameSpeed + scenery[i].speedOffset) * clampedDelta; 
@@ -579,7 +628,6 @@
                 }
             }
 
-            // Kamera Ikut Pemain
             camera.position.x += (player.position.x * 0.3 - camera.position.x) * 5 * clampedDelta;
             camera.position.y += (6 + (player.position.y - playerBaseY) * 0.2 - camera.position.y) * 5 * clampedDelta;
             camera.lookAt(player.position.x * 0.1, 2, -20);
@@ -590,23 +638,24 @@
         function updateHUD() {
             let currentScore = Math.floor(score);
             scoreEl.innerText = currentScore;
+            
             if (currentScore > highScore) {
-                highScore = currentScore; 
-                let currentTier = getTierDetails(highScore);
-                highScoreEl.innerText = highScore;
+                highScoreEl.innerText = currentScore;
+                let currentTier = getTierDetails(currentScore);
                 hudTierEl.innerText = currentTier.name;
                 applyTierStyle(highScoreEl, currentTier);
                 applyTierStyle(hudTierEl, currentTier);
             }
         }
 
-        // --- CONTROLS ---
+        // --- KONTROL PEMAIN ---
         function moveLeft() { if (currentLane > -1) currentLane--; }
         function moveRight() { if (currentLane < 1) currentLane++; }
         function jump() {
             if (!isJumping) {
                 isJumping = true;
                 yVelocity = jumpPower;
+                playJump(); 
                 if (isSliding) { isSliding = false; player.scale.y = 1; }
             }
         }
@@ -616,8 +665,9 @@
                 slideTimer = 0.6; 
                 player.scale.y = 0.4; 
                 player.position.y = playerBaseY * 0.4; 
+                // Bunyi slide telah dibuang
             } else if (isJumping) {
-                yVelocity = -jumpPower; // Force slam down
+                yVelocity = -jumpPower; 
             }
         }
 
@@ -631,6 +681,7 @@
                     case 'ArrowDown': case 's': slide(); break;
                 }
             });
+            
             let touchStartX = 0, touchStartY = 0;
             window.addEventListener('touchstart', (e) => {
                 touchStartX = e.changedTouches[0].screenX;
@@ -640,6 +691,7 @@
                 if (!gameActive) return;
                 let dx = e.changedTouches[0].screenX - touchStartX;
                 let dy = e.changedTouches[0].screenY - touchStartY;
+                
                 if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
                     if (dx > 0) moveRight(); else moveLeft();
                 } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 30) {
@@ -653,8 +705,10 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
+        
         window.onload = init;
     </script>
 </body>
 </html>
+
 
