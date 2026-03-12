@@ -225,7 +225,7 @@
             if (!audioCtx) {
                 audioCtx = new AudioContext();
                 
-                // Master Gain Node dinaikkan 10x ganda (Hanya untuk SFX)
+                // Master Gain Node dinaikkan 10x ganda
                 masterGainNode = audioCtx.createGain();
                 masterGainNode.gain.setValueAtTime(10.0, audioCtx.currentTime);
                 masterGainNode.connect(audioCtx.destination);
@@ -260,7 +260,7 @@
         function playCrash() { playTone(250, 'sine', 0.6, 0.2); }
 
         // ==========================================
-        // KOD ASAL PERMAINAN (TIDAK DISENTUH)
+        // KOD ASAL PERMAINAN
         // ==========================================
 
         let scene, camera, renderer, clock;
@@ -476,17 +476,22 @@
                 const lane = Math.floor(Math.random() * 3) - 1; 
                 const type = Math.random();
                 xPos = lane * LANE_WIDTH;
+                
+                // KESEMUA HALANGAN (BIRU, PINK, KUNING) DIBESARKAN SAMA SEPERTI KOTAK KUNING ASAL
                 if (type < 0.3) {
-                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 1.2, 1.2);
+                    // Biru
+                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 4.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x00ffff, emissiveIntensity: 0.5 });
                     edgeColor = 0x00ffff;
-                    yPos = 0.6; 
+                    yPos = 2.25; 
                 } else if (type < 0.6) {
-                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 1.5, 1.2);
+                    // Pink (Magenta)
+                    obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 4.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xff00ff, emissiveIntensity: 0.5 });
                     edgeColor = 0xff00ff;
-                    yPos = 2.0; 
+                    yPos = 2.25; 
                 } else {
+                    // Kuning
                     obsGeo = new THREE.BoxGeometry(LANE_WIDTH - 0.4, 4.5, 1.2);
                     obsMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffff00, emissiveIntensity: 0.5 });
                     edgeColor = 0xffff00;
